@@ -1,4 +1,7 @@
+const {BasicStrategy} = require('passport-http');
+const passport = require('passport');
 const bodyParser = require('body-parser');
+const jsonParser = require('body-parser').json();
 const express = require('express');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
@@ -14,6 +17,31 @@ app.use(bodyParser.json());
 
 mongoose.Promise = global.Promise;
 
+const basicStrategy = new BasicStrategy((username, password, callback) => {
+  let user;
+  User
+    .findOne({username: username})
+    // .exec()
+    .then(_user => {
+      user = _user;
+      if (!user) {
+        return callback(null, false);
+      }
+      return user.validatePassword(password);
+    })
+    .then(isValid => {
+      if (!isValid) {
+        return callback(null, false);
+      }
+      else {
+        return callback(null, user);
+      }
+    })
+    .catch(err => callback(err));
+});
+
+passport.use(basicStrategy);
+app.use(passport.initialize());
 
 app.get('/posts', (req, res) => {
   BlogPost
@@ -176,6 +204,26 @@ app.post('/users', (req, res) => {
     });
 });
 
+app.get('users/me',
+  passport.authenticate('basic', {session: false}),
+  (req, res) => res.json({user: req.user.apiRepr()})
+);
+
+app.post('users/me',
+  passport.authenticate('basic', {session: false}),
+  (req, res) => res.json({user: req.user.apiRepr()})
+);
+
+app.put('users/me',
+  passport.authenticate('basic', {session: false}),
+  (req, res) => res.json({user: req.user.apiRepr()})
+);
+
+app.delete('users/me',
+  passport.authenticate('basic', {session: false}),
+  (req, res) => res.json({user: req.user.apiRepr()})
+);
+
 app.use('*', function (req, res) {
   res.status(404).json({ message: 'Not Found' });
 });
@@ -225,5 +273,6 @@ function closeServer() {
 if (require.main === module) {
   runServer().catch(err => console.error(err));
 };
+
 
 module.exports = { runServer, app, closeServer };
