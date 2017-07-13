@@ -9,7 +9,6 @@ const morgan = require('morgan');
 const { DATABASE_URL, PORT } = require('./config');
 const { BlogPost, User } = require('./models');
 
-
 const app = express();
 
 app.use(morgan('common'));
@@ -43,7 +42,9 @@ const basicStrategy = new BasicStrategy((username, password, callback) => {
 passport.use(basicStrategy);
 app.use(passport.initialize());
 
-app.get('/posts', (req, res) => {
+const authenticate = passport.authenticate('basic', {session: false});
+
+app.get('/posts', authenticate, (req, res) => {
   BlogPost
     .find()
     .exec()
@@ -56,7 +57,7 @@ app.get('/posts', (req, res) => {
     });
 });
 
-app.get('/posts/:id', (req, res) => {
+app.get('/posts/:id', authenticate, (req, res) => {
   BlogPost
     .findById(req.params.id)
     .exec()
@@ -66,8 +67,9 @@ app.get('/posts/:id', (req, res) => {
       res.status(500).json({ error: 'something went horribly awry' });
     });
 });
-
-app.post('/posts', (req, res) => {
+// Update the POST endpoint for /posts to populate the author's first name 
+// and last name from the authenticated user, rather than taking this information from the request body.
+app.post('/posts',  authenticate, (req, res) => {
   const requiredFields = ['title', 'content', 'author'];
   for (let i = 0; i < requiredFields.length; i++) {
     const field = requiredFields[i];
@@ -93,7 +95,7 @@ app.post('/posts', (req, res) => {
 });
 
 
-app.delete('/posts/:id', (req, res) => {
+app.delete('/posts/:id',  authenticate, (req, res) => {
   BlogPost
     .findByIdAndRemove(req.params.id)
     .exec()
@@ -107,7 +109,7 @@ app.delete('/posts/:id', (req, res) => {
 });
 
 
-app.put('/posts/:id', (req, res) => {
+app.put('/posts/:id',  authenticate, (req, res) => {
   if (!(req.params.id && req.body.id && req.params.id === req.body.id)) {
     res.status(400).json({
       error: 'Request path id and request body id values must match'
@@ -130,7 +132,7 @@ app.put('/posts/:id', (req, res) => {
 });
 
 
-app.delete('/:id', (req, res) => {
+app.delete('/:id',  authenticate, (req, res) => {
   BlogPost
     .findByIdAndRemove(req.params.id)
     .exec()
@@ -204,22 +206,24 @@ app.post('/users', (req, res) => {
     });
 });
 
-app.get('users/me',
+
+
+app.get('/users/me',
   passport.authenticate('basic', {session: false}),
   (req, res) => res.json({user: req.user.apiRepr()})
 );
 
-app.post('users/me',
+app.post('/users/me',
   passport.authenticate('basic', {session: false}),
   (req, res) => res.json({user: req.user.apiRepr()})
 );
 
-app.put('users/me',
+app.put('/users/me',
   passport.authenticate('basic', {session: false}),
   (req, res) => res.json({user: req.user.apiRepr()})
 );
 
-app.delete('users/me',
+app.delete('/users/me',
   passport.authenticate('basic', {session: false}),
   (req, res) => res.json({user: req.user.apiRepr()})
 );
